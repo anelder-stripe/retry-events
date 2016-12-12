@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Resend Stripe Webhooks</title>
+    <link rel="stylesheet" type="text/css" href="/static/styles/form.css">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script>
+
+      var helpers = {
+        getEvent: function(eventId, apiKey) {
+          var resp = null;
+          $.ajax({
+             url: "https://api.stripe.com/v1/events/" + eventId,
+             method: 'GET',
+             async: false,
+             beforeSend: function(xhr) {
+               xhr.setRequestHeader('Authorization', 'Bearer ' + apiKey);
+             }
+          }).done(function (data) {
+            resp = data;
+          }).fail(function (data) {
+            resp = null;
+          });
+          return resp;
+        },
+        sendEvent: function(eventData, endpointUrl) {
+          var success = false;
+          $.ajax({
+            url: '/send_event',
+            method: 'POST',
+            async: false,
+            dataType: 'json',
+            data: {
+              'eventData': JSON.stringify(eventData),
+              'endpointUrl': endpointUrl
+            }
+          }).done(function (data) {
+            success = true;
+          }).fail(function (data) {
+            success = false;
+          });
+          return success;
+        },
+        parseEventIds: function() {
+          var eventIds = $('textarea[name=event_ids]').val().match(/evt_([A-Za-z0-9]+)/g);
+          var uniqueEventIds = [];
+          $.each(eventIds, function(i, eventId){
+            if($.inArray(eventId, uniqueEventIds) === -1) uniqueEventIds.push(eventId);
+          });
+          return uniqueEventIds;
+        }
+      }
+
+      $(document).ready(function() {
+
+        $('#contact').submit(function (e) {
+
+          // Prevent form submission!
+          e.preventDefault();
+
+          $('.log-container').toggle(true);
+
+          // Parse all of the event ids and de-duplicate them.
+          var eventIds = helpers.parseEventIds();
+          var apiKey = $('input[name=api_key]').val();
+          var endpointUrl = $('input[name=endpoint_url]').val();
+
+          // Retrieve every event and send the raw output to endpoint.
+          $.each(eventIds, function(i, eventId) {
+
+            $('#logs').append('[' + eventId + '] Retrieving...<br />');
+            var eventData = helpers.getEvent(eventId, apiKey);
+
+            if (eventData !== null) {
+
+              $('#logs').append('[' + eventId + '] Sending...<br />');
+              var success = helpers.sendEvent(eventData, endpointUrl);
+
+              if (success) {
+                $('#logs').append('[' + eventId + '] Webhook delivery succeeded.<br />');
+              } else {
+                $('#logs').append('[' + eventId + '] Webhook delivery failed.<br />');
+              }
+
+            } else {
+              $('#logs').append('[' + eventId + '] Failed to retrieve.  Aborting.<br />');
+            }
+
+          });
+
+        });
+
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <form id="contact" class="contact" action="/" method="POST">
+        <h3>Resend Stripe Webhooks</h3>
+        <div style="line-height: 1.2em;">Place all of the Event IDs you need retried in a comma-separated list below.<br /><br /></div>
+        <fieldset>
+          <textarea tabindex="1" name="event_ids" placeholder="evt_xxx, evt_yyy, evt_zzz" required autofocus></textarea>
+        </fieldset>
+        <fieldset>
+          <input placeholder="Endpoint URL (eg. https://mywebsite.com/stripe-webhooks)" name="endpoint_url" type="text" tabindex="2" width=100% required>
+        </fieldset>
+        <fieldset>
+          <input placeholder="Secret API Key (eg. sk_live_xxx)" name="api_key" type="text" tabindex="3" required>
+        </fieldset>
+        <fieldset>
+          <button name="submit" type="submit" id="contact-submit" data-submit="...Sending">Submit</button>
+        </fieldset>
+      </form>
+    </div>
+    <div class="contact log-container" style="margin-left: 30px; margin-right: 30px; display: none;">
+      <div style="font: 3em Courier, monospace; border-bottom: 1px solid #c0c0c0; margin-bottom: 15px;">
+        output
+      </div>
+      <div style="font: 1.7em Courier, monospace;" id="logs">
+      </div>
+    </div>
+  </body>
+</html>
