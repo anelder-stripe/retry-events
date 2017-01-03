@@ -1,0 +1,7 @@
+
+{
+  "name": "Retry Stripe Events",
+  "description": "Easily retry Stripe Events",
+  "repository": "https://github.com/anelder-stripe/retry-events",
+  "keywords": ["flask", "python", "stripe"],
+}
