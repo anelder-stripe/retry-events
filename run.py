@@ -22,7 +22,7 @@ def retry_event():
             'Cache-Control': 'no-cache',
             'User-Agent': 'Stripe/1.0 (+https://stripe.com/docs/webhooks)',
         },
-        data=event_data
+        data=event_data.encode('utf-8')
     )
     return (
         json.dumps({'success': bool(r.status_code == 200)}),
